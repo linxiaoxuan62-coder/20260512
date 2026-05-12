@@ -1,6 +1,19 @@
 let capture;
 let bodyPose;
+let handPose;
 let poses = [];
+let hands = [];
+let earringImages = [];
+let currentEarringIndex = 0; // 預設顯示第一款
+
+function preload() {
+  // 預載五款耳環圖片
+  earringImages[0] = loadImage('pic/acc/acc1_ring.png');
+  earringImages[1] = loadImage('pic/acc/acc2_pearl.png');
+  earringImages[2] = loadImage('pic/acc/acc3_tassel.png');
+  earringImages[3] = loadImage('pic/acc/acc4_jade.png');
+  earringImages[4] = loadImage('pic/acc/acc5_phoenix.png');
+}
 
 function setup() {
   // 建立全螢幕畫布
@@ -13,12 +26,20 @@ function setup() {
 
   // 初始化 ml5.bodyPose (使用最新 v1 API)
   bodyPose = ml5.bodyPose(capture, modelReady);
+  
+  // 初始化 ml5.handPose 進行手勢辨識
+  handPose = ml5.handPose(capture, () => console.log('HandPose Loaded!'));
+  handPose.detectStart(capture, gotHands);
 }
 
 function modelReady() {
   console.log('Model Loaded!');
   // 確保模型載入後才開始偵測
   bodyPose.detectStart(capture, gotPoses);
+}
+
+function gotHands(results) {
+  hands = results;
 }
 
 function gotPoses(results) {
@@ -36,12 +57,15 @@ function draw() {
   text("414730795林瑜萱", width / 2, 30);
   text("作品為影像辨識_耳環臉譜", width / 2, 70); // 確保文字內容正確
 
-  // 如果模型還沒載入，顯示提示
-  if (!capture || !capture.loadedmetadata || poses.length === 0) {
+  // 如果模型或攝影機還沒準備好，顯示提示
+  if (!capture || !capture.loadedmetadata || (poses.length === 0 && hands.length === 0)) {
     fill(100);
     textSize(16);
-    text("正在偵測耳朵中，請確保臉部位於畫面中央...", width / 2, height - 30);
+    text("正在偵測中，請確保臉部與手部位於畫面中...", width / 2, height - 30);
   }
+
+  // 更新目前應顯示的耳環索引（基於手指數量）
+  updateEarringSelection();
 
   let vWidth = width * 0.5;
   let vHeight = height * 0.5;
@@ -61,7 +85,37 @@ function draw() {
   pop();
 }
 
+function updateEarringSelection() {
+  if (hands.length > 0) {
+    let hand = hands[0];
+    let count = 0;
+
+    // 簡單的手指伸出判斷邏輯 (比較指尖與指節的 Y 座標)
+    // 食指到小指
+    if (hand.index_finger_tip.y < hand.index_finger_pip.y) count++;
+    if (hand.middle_finger_tip.y < hand.middle_finger_pip.y) count++;
+    if (hand.ring_finger_tip.y < hand.ring_finger_pip.y) count++;
+    if (hand.pinky_finger_tip.y < hand.pinky_finger_pip.y) count++;
+    
+    // 拇指 (判斷指尖與指節的水平距離是否拉開)
+    let thumbDist = dist(hand.thumb_tip.x, hand.thumb_tip.y, hand.index_finger_mcp.x, hand.index_finger_mcp.y);
+    let palmSize = dist(hand.wrist.x, hand.wrist.y, hand.middle_finger_mcp.x, hand.middle_finger_mcp.y);
+    if (thumbDist > palmSize * 0.8) count++;
+
+    // 當手指數量在 1~5 之間時，更新索引
+    if (count >= 1 && count <= 5) {
+      currentEarringIndex = count - 1;
+    }
+    
+    // 除錯資訊：在控制台顯示偵測到的手指數量
+    // console.log("Fingers:", count);
+  }
+}
+
 function drawEarrings(vWidth, vHeight) {
+  // 確保索引不越界
+  let img = earringImages[currentEarringIndex];
+
   // 遍歷所有偵測到的人臉/身體
   for (let i = 0; i < poses.length; i++) {
     let pose = poses[i];
@@ -82,21 +136,21 @@ function drawEarrings(vWidth, vHeight) {
         let mappedX = map(ear.x, 0, cw, -vWidth / 2, vWidth / 2);
         let mappedY = map(ear.y, 0, ch, -vHeight / 2, vHeight / 2);
 
-        // 定義圓圈參數
-        let circleSize = vWidth * 0.02; // 圓圈大小隨畫面比例縮放
-        let spacing = circleSize * 1.5; // 圓圈垂直間距
+        // 定義耳環比例與移動
+        let imgSize = vWidth * 0.1; 
         
-        // 稍微調低 Y 軸座標（約耳朵偵測點下方一點點），模擬耳垂位置
-        let lobeY = mappedY + (circleSize * 0.5); 
+        // 往上移動：減少 Y 值 (以圖片大小的 20% 為比例)
+        let finalY = mappedY + (imgSize * 0.1); 
+        
+        // 往外移動：根據左右耳判斷方向 (以圖片大小的 15% 為比例)
+        // 在鏡像坐標系下，右耳(主題右方)往右移是增加，左耳(主題左方)往左移是減少
+        let offsetX = (part === 'right_ear' ? 1 : -1) * (imgSize * 0.15);
+        let finalX = mappedX + offsetX;
 
-        // 繪製三個黃色圓圈 (耳環效果)
         push();
-        noStroke();
-        fill(255, 235, 59); // 黃色
-        for (let j = 0; j < 3; j++) {
-          // 每個圓圈由耳垂點往下排列
-          ellipse(mappedX, lobeY + (j * spacing), circleSize, circleSize);
-        }
+        imageMode(CENTER);
+        // 顯示目前選擇的耳環圖片
+        image(img, finalX, finalY, imgSize, imgSize);
         pop();
       }
     });
