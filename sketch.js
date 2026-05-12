@@ -25,6 +25,13 @@ function draw() {
   // 設定背景顏色
   background('#e7c6ff');
 
+  // 繪製置中文字 (位於影像上方，不隨影像鏡像)
+  textAlign(CENTER, TOP);
+  textSize(24);
+  fill(0); // 設定文字顏色為黑色
+  text("414730795林OO", width / 2, 30);
+  text("作品為影像辨識_耳環臉譜", width / 2, 70);
+
   let vWidth = width * 0.5;
   let vHeight = height * 0.5;
 
