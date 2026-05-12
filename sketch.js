@@ -13,7 +13,11 @@ function setup() {
 
   // 初始化 ml5.bodyPose (使用最新 v1 API)
   bodyPose = ml5.bodyPose(capture, modelReady);
-  // 開始持續偵測
+}
+
+function modelReady() {
+  console.log('Model Loaded!');
+  // 確保模型載入後才開始偵測
   bodyPose.detectStart(capture, gotPoses);
 }
 
@@ -31,6 +35,13 @@ function draw() {
   fill(0); // 設定文字顏色為黑色
   text("414730795林OO", width / 2, 30);
   text("作品為影像辨識_耳環臉譜", width / 2, 70);
+
+  // 如果模型還沒載入，顯示提示
+  if (poses.length === 0) {
+    fill(100);
+    textSize(16);
+    text("正在偵測耳朵中，請確保臉部位於畫面中央...", width / 2, height - 30);
+  }
 
   let vWidth = width * 0.5;
   let vHeight = height * 0.5;
@@ -50,10 +61,6 @@ function draw() {
   pop();
 }
 
-function modelReady() {
-  console.log('Model Loaded!');
-}
-
 function drawEarrings(vWidth, vHeight) {
   // 遍歷所有偵測到的人臉/身體
   for (let i = 0; i < poses.length; i++) {
@@ -65,12 +72,13 @@ function drawEarrings(vWidth, vHeight) {
     parts.forEach(part => {
       let ear = pose[part];
       
-      // 只在信心值足夠時才繪製
-      if (ear && ear.confidence > 0.5) {
+      // 只在信心值足夠時才繪製（將門檻稍微調低至 0.1 確保容易看到效果）
+      if (ear && ear.confidence > 0.1) {
         // 將原始影片座標映射到目前的畫布縮放空間
         // 原始座標 (0,0) 在影片左上角，需轉換為以中心為 (0,0) 的相對座標
-        let mappedX = map(ear.x, 0, capture.width, -vWidth / 2, vWidth / 2);
-        let mappedY = map(ear.y, 0, capture.height, -vHeight / 2, vHeight / 2);
+        // 使用 || 640 避免 capture.width 尚未載入時變成 0
+        let mappedX = map(ear.x, 0, capture.width || 640, -vWidth / 2, vWidth / 2);
+        let mappedY = map(ear.y, 0, capture.height || 480, -vHeight / 2, vHeight / 2);
 
         // 定義圓圈參數
         let circleSize = vWidth * 0.02; // 圓圈大小隨畫面比例縮放
