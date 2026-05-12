@@ -57,10 +57,21 @@ function draw() {
   text("414730795林瑜萱", width / 2, 30);
   text("作品為影像辨識_耳環臉譜", width / 2, 70); // 確保文字內容正確
 
-  // 如果模型或攝影機還沒準備好，顯示提示
-  if (!capture || !capture.loadedmetadata || (poses.length === 0 && hands.length === 0)) {
+  // 檢查攝影機是否正常載入
+  if (capture && capture.width <= 1 && frameCount > 100) {
+    fill(255, 0, 0);
+    textSize(20);
+    textAlign(CENTER, CENTER);
+    text("❌ 錯誤：找不到攝影機裝置", width / 2, height / 2);
+    text("請確認攝影機已連接，且正透過伺服器環境 (如 Live Server) 執行。", width / 2, height / 2 + 40);
+    return; // 停止繪製，避免後續計算錯誤
+  }
+
+  // 如果模型還在載入中，顯示提示
+  if (!capture.loadedmetadata || (poses.length === 0 && hands.length === 0)) {
     fill(100);
     textSize(16);
+    textAlign(CENTER, TOP);
     text("正在偵測中，請確保臉部與手部位於畫面中...", width / 2, height - 30);
   }
 
