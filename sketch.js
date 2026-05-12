@@ -57,6 +57,12 @@ function draw() {
   text("414730795林瑜萱", width / 2, 30);
   text("作品為影像辨識_耳環臉譜", width / 2, 70); // 確保文字內容正確
 
+  // 在畫面上方顯示目前偵測到的手勢編號（除錯用）
+  fill(255, 0, 0);
+  textSize(20);
+  noStroke();
+  text("目前手勢款式: " + (currentEarringIndex + 1), width / 2, 110);
+
   // 檢查攝影機是否正常載入
   if (capture && capture.width <= 1 && frameCount > 100) {
     fill(255, 0, 0);
@@ -101,25 +107,24 @@ function updateEarringSelection() {
     let hand = hands[0];
     let count = 0;
 
-    // 簡單的手指伸出判斷邏輯 (比較指尖與指節的 Y 座標)
+    // 改良的手指判定：指尖必須明顯高於第二指節，且加入信心值基本檢查
     // 食指到小指
-    if (hand.index_finger_tip.y < hand.index_finger_pip.y) count++;
-    if (hand.middle_finger_tip.y < hand.middle_finger_pip.y) count++;
-    if (hand.ring_finger_tip.y < hand.ring_finger_pip.y) count++;
-    if (hand.pinky_finger_tip.y < hand.pinky_finger_pip.y) count++;
+    if (hand.index_finger_tip && hand.index_finger_tip.y < hand.index_finger_pip.y - 10) count++;
+    if (hand.middle_finger_tip && hand.middle_finger_tip.y < hand.middle_finger_pip.y - 10) count++;
+    if (hand.ring_finger_tip && hand.ring_finger_tip.y < hand.ring_finger_pip.y - 10) count++;
+    if (hand.pinky_finger_tip && hand.pinky_finger_tip.y < hand.pinky_finger_pip.y - 10) count++;
     
     // 拇指 (判斷指尖與指節的水平距離是否拉開)
-    let thumbDist = dist(hand.thumb_tip.x, hand.thumb_tip.y, hand.index_finger_mcp.x, hand.index_finger_mcp.y);
-    let palmSize = dist(hand.wrist.x, hand.wrist.y, hand.middle_finger_mcp.x, hand.middle_finger_mcp.y);
-    if (thumbDist > palmSize * 0.8) count++;
+    if (hand.thumb_tip && hand.index_finger_mcp) {
+      let thumbDist = dist(hand.thumb_tip.x, hand.thumb_tip.y, hand.index_finger_mcp.x, hand.index_finger_mcp.y);
+      let palmSize = dist(hand.wrist.x, hand.wrist.y, hand.middle_finger_mcp.x, hand.middle_finger_mcp.y);
+      if (thumbDist > palmSize * 0.8) count++;
+    }
 
     // 當手指數量在 1~5 之間時，更新索引
     if (count >= 1 && count <= 5) {
       currentEarringIndex = count - 1;
     }
-    
-    // 除錯資訊：在控制台顯示偵測到的手指數量
-    // console.log("Fingers:", count);
   }
 }
 
@@ -148,14 +153,13 @@ function drawEarrings(vWidth, vHeight) {
         let mappedY = map(ear.y, 0, ch, -vHeight / 2, vHeight / 2);
 
         // 定義耳環比例與移動
-        let imgSize = vWidth * 0.1; 
+        let imgSize = vWidth * 0.12; // 稍微放大一點點
         
-        // 往上移動：減少 Y 值 (以圖片大小的 20% 為比例)
-        let finalY = mappedY + (imgSize * 0.1); 
+        // 往上移動：減少 Y 值 (以圖片大小的 15% 為比例)
+        let finalY = mappedY - (imgSize * 0.15); 
         
-        // 往外移動：根據左右耳判斷方向 (以圖片大小的 15% 為比例)
-        // 在鏡像坐標系下，右耳(主題右方)往右移是增加，左耳(主題左方)往左移是減少
-        let offsetX = (part === 'right_ear' ? 1 : -1) * (imgSize * 0.15);
+        // 往外移動：在鏡像座標系下，右耳(畫面左側)往右外移是減，左耳(畫面右側)往左外移是加
+        let offsetX = (part === 'right_ear' ? -1 : 1) * (imgSize * 0.1);
         let finalX = mappedX + offsetX;
 
         push();
